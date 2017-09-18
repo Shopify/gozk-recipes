@@ -146,19 +146,22 @@ func (s *ZKSession) manage() {
 			case zookeeper.STATE_EXPIRED_SESSION:
 				expired = true
 				conn, events, err := zookeeper.Redial(s.servers, s.recvTimeout, s.clientID)
-				if err == nil {
-					s.mu.Lock()
-					if s.conn != nil {
-						err := s.conn.Close()
-						if err != nil {
-							s.log.Printf("error in closing existing zookeeper connection: %v", err)
-						}
+
+				s.mu.Lock()
+				if s.conn != nil {
+					closeErr := s.conn.Close()
+					if closeErr != nil {
+						s.log.Printf("error in closing existing zookeeper connection: %v", closeErr)
 					}
+				}
+
+				if err == nil {
 					s.conn = conn
 					s.events = events
 					s.clientID = conn.ClientId()
-					s.mu.Unlock()
 				}
+				s.mu.Unlock()
+
 				if err != nil {
 					s.notifySubscribers(SessionFailed)
 					s.log.Printf("gozk-recipes/session.SessionFailed: %s, session terminated", err.Error())
